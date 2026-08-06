@@ -1,0 +1,91 @@
+{
+  "udp": {
+    "host": "127.0.0.1",
+    "port": 5005,
+    "send_hz": 60.0,
+    "watchdog_timeout_s": 0.5
+  },
+  "leader": {
+    "default_port": "/dev/ttyUSB0",
+    "id": "rebot_arm_102_leader",
+    "python": "/home/seeed/rebot_lerobot/.venv/bin/python"
+  },
+  "arm_mapping": [
+    {
+      "leader_joint": "shoulder_pan",
+      "sim_joint": "joint1",
+      "scale": -1.0,
+      "offset_deg": 0.0
+    },
+    {
+      "leader_joint": "shoulder_lift",
+      "sim_joint": "joint2",
+      "scale": -1.0,
+      "offset_deg": 0.0
+    },
+    {
+      "leader_joint": "elbow_flex",
+      "sim_joint": "joint3",
+      "scale": 1.0,
+      "offset_deg": 0.0
+    },
+    {
+      "leader_joint": "wrist_flex",
+      "sim_joint": "joint4",
+      "scale": 1.0,
+      "offset_deg": 0.0
+    },
+    {
+      "leader_joint": "wrist_yaw",
+      "sim_joint": "joint5",
+      "scale": 1.0,
+      "offset_deg": 0.0
+    },
+    {
+      "leader_joint": "wrist_roll",
+      "sim_joint": "joint6",
+      "scale": -1.0,
+      "offset_deg": 0.0
+    }
+  ],
+  "gripper_mapping": {
+    "leader_joint": "gripper",
+    "leader_closed_deg": 0.0,
+    "leader_open_deg": 45.0,
+    "sim_closed_m": 0.0,
+    "sim_open_m": 0.05
+  },
+  "dataset_mapping": {
+    "follower_joint_directions": {
+      "shoulder_pan": 1.0,
+      "shoulder_lift": 1.0,
+      "elbow_flex": -1.0,
+      "wrist_flex": -1.0,
+      "wrist_yaw": -1.0,
+      "wrist_roll": 1.0
+    },
+    "follower_gripper_scale": 6.0
+  },
+  "command_filter": {
+    "mode": "direct",
+    "alpha": 0.25,
+    "fast_alpha": 0.75,
+    "fast_threshold_deg": 1.0,
+    "deadband_deg": 0.05,
+    "max_arm_step_deg": 12.0,
+    "gripper_alpha": 1.0,
+    "max_gripper_step_m": 0.08
+  },
+  "grasp_assist": {
+    "enabled": true,
+    "close_threshold_m": 0.014,
+    "release_threshold_m": 0.026,
+    "max_grasp_distance_m": 0.030,
+    "contact_lock_enabled": true,
+    "contact_lock_opening_m": 0.022,
+    "contact_lock_release_m": 0.026,
+    "release_collision_delay_steps": 3,
+    "release_collision_max_steps": 24,
+    "release_contact_restore_opening_m": 0.038
+  }
+}
