@@ -314,6 +314,18 @@ class LeaderTeleop:
         self.assist_close = float(assist["close_threshold_m"])
         self.assist_release = float(assist["release_threshold_m"])
         self.assist_distance = float(assist["max_grasp_distance_m"])
+        self.assist_region_half_length = max(
+            0.0, float(assist.get("grasp_region_half_length_m", 0.0))
+        )
+        self.assist_region_samples = max(
+            1, int(assist.get("grasp_region_samples", 1))
+        )
+        self.assist_activation_opening = float(
+            assist.get("activation_opening_m", 0.028)
+        )
+        self.allow_contact_lock_fallback = bool(
+            assist.get("allow_contact_lock_fallback", True)
+        )
         self.contact_lock_enabled = bool(
             assist.get("contact_lock_enabled", True)
         )
@@ -1357,9 +1369,25 @@ class LeaderTeleop:
 
     def _grasp_distance(self) -> float:
         body_position, body_orientation = self._assist_body_world_pose()
-        grasp_position = body_position + _quaternion_rotate(
-            body_orientation, self.assist_offset
+        # A single point at link6 is too sensitive to CAD and fingertip-length
+        # calibration errors. Sample a short segment along the gripper's local
+        # forward axis so the assist volume covers the space between the finger
+        # roots and tips without extending sideways across the workspace.
+        axial_offsets = np.linspace(
+            -self.assist_region_half_length,
+            self.assist_region_half_length,
+            self.assist_region_samples,
+            dtype=np.float64,
         )
+        grasp_positions = [
+            body_position
+            + _quaternion_rotate(
+                body_orientation,
+                self.assist_offset
+                + np.asarray([0.0, 0.0, axial_offset], dtype=np.float64),
+            )
+            for axial_offset in axial_offsets
+        ]
 
         def target_distance(name: str) -> float:
             target_position, target_orientation = self.targets[
@@ -1367,24 +1395,34 @@ class LeaderTeleop:
             ].get_world_pose()
             target_position = np.asarray(target_position, dtype=np.float64)
             orientation = _quaternion_normalize(target_orientation)
-            local_point = _quaternion_rotate(
-                _quaternion_conjugate(orientation),
-                grasp_position - target_position,
-            )
             geometry = TARGET_GRASP_GEOMETRY[name]
-            if "half_extents" in geometry:
-                half_extents = np.asarray(
-                    geometry["half_extents"], dtype=np.float64
+            distances: list[float] = []
+            for grasp_position in grasp_positions:
+                local_point = _quaternion_rotate(
+                    _quaternion_conjugate(orientation),
+                    grasp_position - target_position,
                 )
-                outside = np.maximum(np.abs(local_point) - half_extents, 0.0)
-                return float(np.linalg.norm(outside))
-            half_length = float(geometry["half_length"])
-            radius = float(geometry["radius"])
-            axial_excess = max(abs(float(local_point[0])) - half_length, 0.0)
-            radial_excess = max(
-                float(np.linalg.norm(local_point[1:])) - radius, 0.0
-            )
-            return float(np.hypot(axial_excess, radial_excess))
+                if "half_extents" in geometry:
+                    half_extents = np.asarray(
+                        geometry["half_extents"], dtype=np.float64
+                    )
+                    outside = np.maximum(
+                        np.abs(local_point) - half_extents, 0.0
+                    )
+                    distances.append(float(np.linalg.norm(outside)))
+                    continue
+                half_length = float(geometry["half_length"])
+                radius = float(geometry["radius"])
+                axial_excess = max(
+                    abs(float(local_point[0])) - half_length, 0.0
+                )
+                radial_excess = max(
+                    float(np.linalg.norm(local_point[1:])) - radius, 0.0
+                )
+                distances.append(
+                    float(np.hypot(axial_excess, radial_excess))
+                )
+            return min(distances)
 
         if not self.grasp_attached and self.release_collision_pending_steps <= 0:
             nearest_name = min(self.targets, key=target_distance)
@@ -1488,12 +1526,36 @@ class LeaderTeleop:
             return
         if self.command_gripper > self.assist_close:
             return
-        if self.contact_lock_enabled and not self.gripper_contact_locked:
-            return
         distance = self._grasp_distance()
         self.min_grasp_distance = min(self.min_grasp_distance, distance)
-        if distance <= self.assist_distance:
-            self._attach_target(distance)
+        if distance > self.assist_distance:
+            return
+
+        actual = np.asarray(
+            self.robot.get_joint_positions(
+                joint_indices=self.gripper_indices
+            ),
+            dtype=np.float64,
+        )
+        actual_mean = float(np.mean(actual))
+        if actual_mean > self.assist_activation_opening:
+            return
+
+        if self.contact_lock_enabled and not self.gripper_contact_locked:
+            if not self.allow_contact_lock_fallback:
+                return
+            # Thin objects may not create enough drive lag to satisfy the
+            # directional contact-lock detector. Once the leader command and
+            # the measured fingers are both closed in the near-field region,
+            # freeze the measured opening and attach directly.
+            self.gripper_contact_target = actual.copy()
+            self.gripper_contact_locked = True
+            print(
+                f"[CONTACT-LOCK-FALLBACK] {self.active_target_name} is inside "
+                f"the grasp corridor; locking at {actual.round(5).tolist()}m"
+            )
+
+        self._attach_target(distance)
 
     def _validate_test(self) -> bool:
         assert self.robot is not None
@@ -1628,6 +1690,19 @@ class LeaderTeleop:
                     else "HOLD"
                 )
                 q_deg = np.degrees(self.command_arm).round(1).tolist()
+                actual_gripper = np.asarray(
+                    self.robot.get_joint_positions(
+                        joint_indices=self.gripper_indices
+                    ),
+                    dtype=np.float64,
+                )
+                grasp_debug = ""
+                if self.assist_enabled and not self.grasp_attached:
+                    nearest_distance = self._grasp_distance()
+                    grasp_debug = (
+                        f" nearest={self.active_target_name} "
+                        f"distance={nearest_distance:.3f}m"
+                    )
                 record_status = (
                     " REC"
                     if self.recorder is not None
@@ -1637,7 +1712,12 @@ class LeaderTeleop:
                 print(
                     f"[teleop:{status}{record_status}] "
                     f"packets={self.packet_count} "
-                    f"q_deg={q_deg} gripper={self.command_gripper:.4f}m"
+                    f"q_deg={q_deg} "
+                    f"gripper_cmd={self.command_gripper:.4f}m "
+                    f"gripper_actual={float(np.mean(actual_gripper)):.4f}m "
+                    f"lock={self.gripper_contact_locked} "
+                    f"attached={self.grasp_attached}"
+                    f"{grasp_debug}"
                 )
                 last_report = now
 

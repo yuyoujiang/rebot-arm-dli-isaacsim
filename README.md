@@ -140,8 +140,10 @@ independent dynamic rigid bodies.
 Move the gripper close to an object and close the leader gripper. The default
 near-field grasp assist selects the nearest pen or eraser using a finite
 cylinder or oriented-box surface approximation. Attachment is permitted only
-when the gripper closes and its grasp center is within `0.030 m` of the object
-surface. Opening the leader gripper releases the object.
+when the gripper closes and the object surface is within `0.040 m` of a sampled
+`0.090 m` corridor running from the finger roots toward the fingertips. This
+volume tolerates small CAD and fingertip calibration errors without extending
+sideways across the workspace. Opening the leader gripper releases the object.
 
 The assist only stabilizes human demonstrations; it never moves the arm by
 itself. It preserves the object's measured pose relative to the wrist, filters
@@ -170,7 +172,16 @@ The gripper uses two explicit linear drives with a shared 1:1 target:
 
 The contact lock activates in the `0.022 m` closing band and prevents the
 fingers from driving through a nearby object. Look for `[CONTACT-LOCK]` and
-`[GRASP]` in the terminal when a grasp succeeds.
+`[GRASP]` in the terminal when a grasp succeeds. If a thin object does not
+produce enough physical drive lag for the primary detector, a fallback can
+activate only after the measured finger opening is below `0.028 m` and the
+object is already inside the grasp corridor. It prints
+`[CONTACT-LOCK-FALLBACK]` before `[GRASP]`.
+
+The one-second teleoperation status line reports `gripper_cmd`,
+`gripper_actual`, `nearest`, `distance`, `lock`, and `attached`. These fields
+make it possible to distinguish leader mapping, physical finger motion,
+near-field selection, and attachment failures directly from the terminal.
 
 To disable grasp assist and use only PhysX contact and friction:
 
