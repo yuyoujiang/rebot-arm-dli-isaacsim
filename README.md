@@ -27,8 +27,8 @@ last target whenever leader data is unavailable.
 
 The workspace contains:
 
-- one red pen;
-- one blue pen;
+- one pencil;
+- one ballpoint pen;
 - one eraser;
 - one fixed pencil cup.
 
@@ -39,20 +39,54 @@ place all three objects into the pencil cup.
 ## Requirements
 
 - Ubuntu with a working NVIDIA GPU and Isaac Sim 4.5
-- Isaac Sim installed at `/home/seeed/isaacsim`, or `ISAACSIM_ROOT` set to a
+- Launch isaacsim from `~/isaacsim` by default, `ISAACSIM_ROOT` set to a
   different installation directory
 - A reBot Arm 102 Leader connected through USB-UART
-- A LeRobot environment at `/home/seeed/rebot_lerobot/.venv`, or an updated
-  `leader.python` value in `config/teleop_config.json`
 
-The repository is expected at:
+## Installation
 
-```text
-/home/seeed/rebot-arm-dli-isaacsim
+### IsaacSim
+
+Please refer to the documentation provided by nvidia to install isaac sim.
+`https://docs.isaacsim.omniverse.nvidia.com/4.5.0/installation/index.html`
+
+### Lerobot
+
+
+```bash
+mkdir ~/rebot_lerobot
+cd ~/rebot_lerobot
+sudo apt update
+sudo apt install -y ffmpeg
+
+# Download github repo
+git clone https://github.com/Seeed-Projects/lerobot.git
+git clone https://github.com/Seeed-Projects/lerobot-teleoperator-rebot-arm-102.git
+git clone https://github.com/Seeed-Projects/lerobot-robot-seeed-b601.git
+
+# Create virtual environment (Python 3.12)
+uv venv --python 3.12 .venv
+
+# Activate environment
+source .venv/bin/activate
+
+# Upgrade pip (optional)
+uv pip install --upgrade pip
+
+# Install lerobot main project (editable mode)
+uv pip install -e ./lerobot
+
+# Add local dependency packages (editable install)
+uv pip install -e ./lerobot-teleoperator-rebot-arm-102
+uv pip install -e ./lerobot-robot-seeed-b601
+uv pip install motorbridge
 ```
 
-All application USD references are relative. Moving or cloning the whole
-repository does not require rewriting scene asset paths.
+### This project
+```bash
+cd ~
+git clone https://github.com/yuyoujiang/rebot-arm-dli-isaacsim.git
+```
 
 ## Leader calibration
 
@@ -60,7 +94,7 @@ The default calibration ID is `rebot_arm_102_leader`. To recalibrate, place the
 leader in the zero pose required by Seeed's guide and fully close the gripper:
 
 ```bash
-cd /home/seeed/rebot_lerobot
+cd ~/rebot_lerobot
 source .venv/bin/activate
 
 lerobot-calibrate \
@@ -92,12 +126,11 @@ References:
 Connect the leader, then run:
 
 ```bash
-cd /home/seeed/rebot-arm-dli-isaacsim
+cd ~/rebot-arm-dli-isaacsim
 ./run.sh --leader-port /dev/ttyUSB0
 ```
 
-If only one `/dev/ttyUSB*` device is present, automatic detection is normally
-sufficient:
+If only one `/dev/ttyUSB*` device is present, automatic detection is normally sufficient:
 
 ```bash
 ./run.sh
@@ -109,8 +142,7 @@ To use another Isaac Sim installation:
 ISAACSIM_ROOT=/path/to/isaacsim ./run.sh
 ```
 
-Do not run another process that uses the same serial port or UDP port. The
-launcher starts a separate LeRobot Python process and sends leader state to
+Do not run another process that uses the same serial port or UDP port. The launcher starts a separate LeRobot Python process and sends leader state to
 `udp://127.0.0.1:5005`.
 
 ### Keyboard controls
@@ -197,7 +229,8 @@ The GUI exposes three views:
 2. `front`, mounted on the wrist and recorded;
 3. `side`, fixed inside the enclosure and recorded.
 
-The recorded cameras run at `320x240`, 30 FPS.
+The recorded cameras run at `640x480`, 30 FPS. Both `front` and `side`
+therefore use the dataset image shape `[480, 640, 3]` (height, width, RGB).
 
 - `front`: `/World/Robot/link6/FrontCamera`
 - `side`: `/World/Cameras/Side`
@@ -241,7 +274,7 @@ Run a fixed scene with:
 The default dataset is written to:
 
 ```text
-/home/seeed/rebot-arm-dli-isaacsim/datasets/rebot_stationery_front_side
+~/rebot-arm-dli-isaacsim/datasets/rebot_stationery_front_side
 ```
 
 Each episode includes:
@@ -260,12 +293,12 @@ remain below `0.25 m/s` for `0.35 s`.
 Visualize episode 0 with:
 
 ```bash
-cd /home/seeed/rebot_lerobot
+cd ~/rebot_lerobot
 source .venv/bin/activate
 
 lerobot-dataset-viz \
   --repo-id local/rebot_stationery_front_side \
-  --root /home/seeed/rebot-arm-dli-isaacsim/datasets/rebot_stationery_front_side \
+  --root ~/rebot-arm-dli-isaacsim/datasets/rebot_stationery_front_side \
   --episode-index 0
 ```
 
@@ -274,15 +307,15 @@ lerobot-dataset-viz \
 Start the Isaac receiver without opening the leader or recording:
 
 ```bash
-cd /home/seeed/rebot-arm-dli-isaacsim
+cd ~/rebot-arm-dli-isaacsim
 ./run.sh --no-start-bridge --no-recording --no-dr
 ```
 
 In another terminal, replay episode 0:
 
 ```bash
-cd /home/seeed/rebot-arm-dli-isaacsim
-/home/seeed/rebot_lerobot/.venv/bin/python \
+cd ~/rebot-arm-dli-isaacsim
+~/rebot_lerobot/.venv/bin/python \
   scripts/replay_episode.py --episode 0
 ```
 
@@ -355,25 +388,6 @@ rebot-arm-dli-isaacsim/
 ├── run.sh
 └── run_demo.sh
 ```
-
-## Publishing to GitHub
-
-The robot package contains a binary USD file of approximately 95 MB. This
-repository therefore includes `.gitattributes` rules for Git LFS. Install and
-initialize Git LFS before the first commit:
-
-```bash
-cd /home/seeed/rebot-arm-dli-isaacsim
-git lfs install
-git init
-git add .
-git commit -m "Initial reBot Arm DLI Isaac Sim project"
-```
-
-Before making the repository public, review `THIRD_PARTY_NOTICES.md`. In
-particular, confirm redistribution rights for the reBot USD package and
-`assets/workspace/box.usdz`. Generated `datasets/`, `logs/`, `outputs/`, Python
-caches, and local editor files are excluded by `.gitignore`.
 
 ## References
 

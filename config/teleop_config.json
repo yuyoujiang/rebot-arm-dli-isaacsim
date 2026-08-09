@@ -8,7 +8,7 @@
   "leader": {
     "default_port": "/dev/ttyUSB0",
     "id": "rebot_arm_102_leader",
-    "python": "/home/seeed/rebot_lerobot/.venv/bin/python"
+    "python": "../rebot_lerobot/.venv/bin/python"
   },
   "arm_mapping": [
     {

@@ -139,8 +139,9 @@ def main() -> int:
         except ImportError as exc:
             raise RuntimeError(
                 "The current Python environment does not provide "
-                "lerobot-teleoperator-rebot-arm-102. Use "
-                "/home/seeed/rebot_lerobot/.venv/bin/python"
+                "lerobot-teleoperator-rebot-arm-102. Run this bridge with "
+                "the LeRobot virtual environment configured in "
+                "config/teleop_config.json."
             ) from exc
 
         leader_config = RebotArm102LeaderConfig(

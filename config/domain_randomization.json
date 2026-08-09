@@ -78,7 +78,7 @@
   },
   "recording": {
     "fps": 30,
-    "resolution": [320, 240],
+    "resolution": [640, 480],
     "repo_id": "local/rebot_stationery_front_side",
     "dataset_root": "datasets/rebot_stationery_front_side",
     "task_name": "Put the two pens and the eraser into the pencil cup",

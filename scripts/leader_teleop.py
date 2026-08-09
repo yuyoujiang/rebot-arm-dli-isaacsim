@@ -31,6 +31,17 @@ TARGET_GRASP_GEOMETRY = {
 }
 
 
+def _resolve_leader_python(value: str | Path) -> Path:
+    """Resolve configured paths relative to the project, not the launch shell."""
+    path = Path(value).expanduser()
+    if not path.is_absolute():
+        path = PROJECT_ROOT / path
+    # Do not use Path.resolve() here. A virtual environment's python executable
+    # is commonly a symlink; resolving it selects the base interpreter and
+    # prevents Python from finding the venv's pyvenv.cfg and installed packages.
+    return Path(os.path.abspath(path))
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--headless", action="store_true", help="Run without the Isaac Sim GUI")
@@ -588,14 +599,10 @@ class LeaderTeleop:
             seed=self.dr_seed,
         )
         if self.recording_enabled:
-            leader_python = Path(
-                os.path.abspath(
-                    str(
-                        ARGS.leader_python
-                        if ARGS.leader_python
-                        else self.config["leader"]["python"]
-                    )
-                )
+            leader_python = _resolve_leader_python(
+                ARGS.leader_python
+                if ARGS.leader_python
+                else self.config["leader"]["python"]
             )
             self.recorder = EpisodeRecorder(
                 dataset_root=self.dataset_root,
@@ -1074,14 +1081,10 @@ class LeaderTeleop:
         if ARGS.no_start_bridge:
             print("[teleop] Waiting for an external leader_bridge.py process")
             return
-        leader_python = Path(
-            os.path.abspath(
-                str(
-                    ARGS.leader_python
-                    if ARGS.leader_python
-                    else self.config["leader"]["python"]
-                )
-            )
+        leader_python = _resolve_leader_python(
+            ARGS.leader_python
+            if ARGS.leader_python
+            else self.config["leader"]["python"]
         )
         if not leader_python.is_file():
             raise FileNotFoundError(f"LeRobot Python was not found: {leader_python}")

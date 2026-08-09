@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ISAACSIM_ROOT="${ISAACSIM_ROOT:-/home/seeed/isaacsim}"
+ISAACSIM_ROOT="${ISAACSIM_ROOT:-${HOME}/isaacsim}"
 ISAACSIM_PYTHON="${ISAACSIM_ROOT}/python.sh"
 export PYTHONUNBUFFERED=1
 
