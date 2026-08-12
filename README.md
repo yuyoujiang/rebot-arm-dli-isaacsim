@@ -4,7 +4,7 @@ An Isaac Sim teleoperation and data-collection project for the Seeed Studio
 reBot Arm B601-RS. It adapts NVIDIA's SO-101 Sim-to-Real workflow to a
 stationery-sorting task: use a physical reBot Arm 102 Leader to place two pens
 and one eraser into a fixed pencil cup.
-
+![overview](./media/overview.gif)
 The default application contains no autonomous arm trajectory. The simulated
 B601 follows the leader's six arm joints and gripper command, and holds its
 last target whenever leader data is unavailable.
