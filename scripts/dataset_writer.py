@@ -23,7 +23,7 @@ JOINT_NAMES = [
     "wrist_roll.pos",
     "gripper.pos",
 ]
-CAMERA_NAMES = ("front", "side")
+CAMERA_NAMES = ("front", "external")
 
 
 def _parse_args() -> argparse.Namespace:
@@ -48,7 +48,7 @@ def _features(
             "shape": (height, width, 3),
             "names": ["height", "width", "channels"],
         },
-        "observation.images.side": {
+        "observation.images.external": {
             "dtype": "video",
             "shape": (height, width, 3),
             "names": ["height", "width", "channels"],
@@ -142,7 +142,7 @@ def main() -> int:
                     "action": actions[frame_index],
                     "observation.state": states[frame_index],
                     "observation.images.front": images["front"],
-                    "observation.images.side": images["side"],
+                    "observation.images.external": images["external"],
                     "task": metadata["task"],
                 }
             )
